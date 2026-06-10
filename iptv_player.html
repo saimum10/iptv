@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPTV Player</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+<style>
+:root{--bg:#0f0f13;--bg2:#1a1a24;--bg3:#22222f;--bgc:#1e1e2a;--acc:#7c6af7;--acch:#9b8dff;--accg:rgba(124,106,247,.25);--tp:#f0eeff;--ts:#9993cc;--tm:#5c5880;--bdr:rgba(124,106,247,.15);--bdrh:rgba(124,106,247,.4);--plbg:rgba(124,106,247,.12);--plbdr:rgba(124,106,247,.6);--err:#ff5c7a;--ok:#4dffb4;--sh:0 4px 24px rgba(0,0,0,.5);--r:10px;--rs:6px}
+.light{--bg:#f0eeff;--bg2:#e8e4ff;--bg3:#ddd8ff;--bgc:#f8f6ff;--acc:#5b46e8;--acch:#7c6af7;--accg:rgba(91,70,232,.15);--tp:#1a1240;--ts:#4a3fa0;--tm:#9990cc;--bdr:rgba(91,70,232,.2);--bdrh:rgba(91,70,232,.5);--plbg:rgba(91,70,232,.08);--plbdr:rgba(91,70,232,.5);--err:#d63055;--ok:#0fad6e;--sh:0 4px 24px rgba(91,70,232,.12)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tp);transition:background .3s,color .3s;overflow:hidden}
+header{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--bdr);position:fixed;top:0;left:0;right:0;z-index:100;gap:12px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1rem;color:var(--acc);white-space:nowrap}
+.logo svg{width:22px;height:22px}
+.hstat{font-size:.72rem;color:var(--tm);white-space:nowrap}
+.hr{display:flex;align-items:center;gap:8px}
+.ibtn{background:var(--bg3);border:1px solid var(--bdr);color:var(--ts);border-radius:var(--rs);padding:6px 10px;cursor:pointer;font-size:.78rem;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
+.ibtn:hover{background:var(--accg);border-color:var(--bdrh);color:var(--tp)}
+.app{display:flex;height:calc(100vh - 52px);margin-top:52px;overflow:hidden}
+.sidebar{width:320px;min-width:200px;max-width:60vw;background:var(--bg2);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden;position:relative;flex-shrink:0}
+.rh{position:absolute;right:0;top:0;bottom:0;width:4px;cursor:col-resize;z-index:10;background:transparent;transition:background .2s}
+.rh:hover,.rh.drag{background:var(--acc)}
+.stop{padding:10px 12px;border-bottom:1px solid var(--bdr);display:flex;flex-direction:column;gap:8px}
+.sw{position:relative}
+.sw input{width:100%;padding:8px 10px 8px 32px;border-radius:var(--rs);background:var(--bg3);border:1px solid var(--bdr);color:var(--tp);font-size:.82rem;outline:none;transition:border .2s}
+.sw input:focus{border-color:var(--acc)}
+.sw input::placeholder{color:var(--tm)}
+.si{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--tm);font-size:.85rem}
+.gf{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin}
+.gf::-webkit-scrollbar{height:3px}
+.gf::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:3px}
+.gb{background:var(--bg3);border:1px solid var(--bdr);color:var(--ts);border-radius:20px;padding:4px 10px;font-size:.72rem;cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:4px}
+.gb.act{background:var(--acc);border-color:var(--acc);color:#fff}
+.gb:hover:not(.act){border-color:var(--bdrh);color:var(--tp)}
+.bdg{background:rgba(255,255,255,.2);border-radius:10px;padding:1px 5px;font-size:.65rem}
+.gb:not(.act) .bdg{background:var(--bg);color:var(--tm)}
+.clist{flex:1;overflow-y:auto;padding:6px 0}
+.clist::-webkit-scrollbar{width:4px}
+.clist::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:4px}
+.ci{display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer;border-left:3px solid transparent;transition:all .18s;border-bottom:1px solid transparent}
+.ci:hover{background:var(--bg3);border-left-color:var(--bdrh)}
+.ci.pl{background:var(--plbg);border-left-color:var(--acc)}
+.cn{font-size:.65rem;color:var(--tm);min-width:24px;text-align:right;font-variant-numeric:tabular-nums}
+.cl{width:34px;height:34px;border-radius:var(--rs);object-fit:contain;background:var(--bg3);border:1px solid var(--bdr);flex-shrink:0}
+.clf{width:34px;height:34px;border-radius:var(--rs);background:var(--bg3);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:.65rem;color:var(--tm);flex-shrink:0;font-weight:600}
+.cinfo{flex:1;min-width:0}
+.cname{font-size:.8rem;font-weight:500;color:var(--tp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cgrp{font-size:.65rem;color:var(--tm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca{display:flex;gap:4px;opacity:0;transition:opacity .15s;flex-shrink:0}
+.ci:hover .ca,.ci.pl .ca{opacity:1}
+.cbtn{background:var(--bg);border:1px solid var(--bdr);color:var(--ts);border-radius:var(--rs);width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.7rem;transition:all .15s;padding:0}
+.cbtn:hover{background:var(--accg);border-color:var(--acc);color:var(--acc)}
+.cbtn.pb:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
+.nores{padding:24px;text-align:center;color:var(--tm);font-size:.82rem}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.pa{flex:1;background:#000;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:0}
+video{width:100%;height:100%;object-fit:contain;display:block}
+.pp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--tm);height:100%;width:100%}
+.pp svg{width:56px;height:56px;opacity:.3}
+.pp p{font-size:.9rem}
+.pov{position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(0,0,0,.85) 100%);display:flex;flex-direction:column;justify-content:flex-end;opacity:0;transition:opacity .3s;pointer-events:none}
+.pa:hover .pov,.pov.vis{opacity:1;pointer-events:all}
+.pc{padding:10px 14px 12px;display:flex;align-items:center;gap:10px}
+.ctb{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:var(--rs);width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.85rem;transition:all .15s;flex-shrink:0}
+.ctb:hover{background:rgba(255,255,255,.25)}
+.vw{display:flex;align-items:center;gap:6px}
+input[type=range]{-webkit-appearance:none;width:80px;height:3px;background:rgba(255,255,255,.3);border-radius:3px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;cursor:pointer}
+.csp{flex:1}
+.npl{font-size:.75rem;color:rgba(255,255,255,.8);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.so{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,.75);pointer-events:none;opacity:0;transition:opacity .3s}
+.so.show{opacity:1;pointer-events:all}
+.spin{width:36px;height:36px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.smsg{color:#fff;font-size:.85rem;text-align:center;max-width:260px}
+.rbt{background:var(--acc);border:none;color:#fff;padding:7px 18px;border-radius:var(--rs);cursor:pointer;font-size:.82rem;margin-top:4px;transition:background .2s}
+.rbt:hover{background:var(--acch)}
+.ibar{background:var(--bg2);border-top:1px solid var(--bdr);padding:8px 14px;display:flex;align-items:center;gap:12px;min-height:46px;font-size:.78rem;flex-shrink:0}
+.il{width:30px;height:30px;border-radius:var(--rs);object-fit:contain;background:var(--bg3);border:1px solid var(--bdr)}
+.ilf{width:30px;height:30px;border-radius:var(--rs);background:var(--bg3);border:1px solid var(--bdr);display:flex;align-items:center;justify-content:center;font-size:.6rem;color:var(--tm);font-weight:600}
+.id{flex:1;min-width:0}
+.iname{font-weight:600;color:var(--tp);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.igrp{color:var(--tm);font-size:.7rem}
+.iph{color:var(--tm);font-style:italic}
+.ibadge{background:var(--accg);border:1px solid var(--bdrh);color:var(--acc);border-radius:4px;padding:2px 8px;font-size:.68rem;white-space:nowrap}
+.kbh{color:var(--tm);font-size:.68rem;display:flex;gap:10px;flex-wrap:wrap}
+.kbh span{background:var(--bg3);border:1px solid var(--bdr);border-radius:3px;padding:1px 5px}
+.toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--bdr);color:var(--tp);padding:8px 18px;border-radius:20px;font-size:.8rem;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none;box-shadow:var(--sh)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:700px){.app{flex-direction:column}.sidebar{width:100% !important;max-width:100%;height:45vh;min-height:180px;border-right:none;border-bottom:1px solid var(--bdr)}.rh{display:none}.main{height:55vh}.kbh{display:none}input[type=range]{width:55px}.npl{max-width:120px}.hstat{display:none}}
+@media(max-width:400px){.gb{padding:4px 8px;font-size:.68rem}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8M12 18v2"/></svg>
+    IPTV Player
+  </div>
+  <span class="hstat" id="totalCount">Loading...</span>
+  <div class="hr">
+    <button class="ibtn" onclick="toggleTheme()">🌙 Dark</button>
+  </div>
+</header>
+<div class="app">
+  <div class="sidebar" id="sidebar">
+    <div class="stop">
+      <div class="sw">
+        <span class="si">🔍</span>
+        <input type="text" id="searchInput" placeholder="Search channels..." oninput="filterChannels()">
+      </div>
+      <div class="gf" id="groupFilter"></div>
+    </div>
+    <div class="clist" id="channelList"></div>
+    <div class="rh" id="rh"></div>
+  </div>
+  <div class="main">
+    <div class="pa" id="pa">
+      <video id="vid" playsinline></video>
+      <div class="pp" id="pp">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-4 5-4v8z"/></svg>
+        <p>Select a channel to start watching</p>
+      </div>
+      <div class="so" id="so">
+        <div class="spin" id="spin"></div>
+        <div class="smsg" id="smsg">Loading stream...</div>
+        <button class="rbt" id="rbt" onclick="retryStream()" style="display:none">⟳ Retry</button>
+      </div>
+      <div class="pov" id="pov">
+        <div class="pc">
+          <button class="ctb" onclick="togglePlay()" title="Space"><span id="pico">▶</span></button>
+          <div class="vw">
+            <button class="ctb" id="mb" onclick="toggleMute()" title="M">🔊</button>
+            <input type="range" id="vs" min="0" max="1" step="0.05" value="1" oninput="setVolume(this.value)">
+          </div>
+          <span class="npl" id="npl">—</span>
+          <span class="csp"></span>
+          <button class="ctb" onclick="togglePiP()" title="P">⧉</button>
+          <button class="ctb" onclick="toggleFS()" title="F">⛶</button>
+        </div>
+      </div>
+    </div>
+    <div class="ibar" id="ibar">
+      <span class="iph">No channel selected</span>
+      <div class="kbh" style="margin-left:auto">
+        <span>Space: Play/Pause</span><span>M: Mute</span><span>F: Fullscreen</span><span>P: PiP</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const RAW=`#EXTM3U
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/falconcasthoster/images/refs/heads/main/FalconCast.png" group-title="Promo",FalconCast
+https://raw.githubusercontent.com/falconcasthoster/promo/refs/heads/main/nolink/master.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://owrcovcrpy.gpcdn.net/bpk-tv/1709/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://tvsen7.aynaott.com/tsports-hd/tracks-v1a1/mono.ts.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+http://27.124.71.27/T-Sports/index.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://tvsen7.aynaott.com/tsports-hd/index.m3u8?e=1779283784&u=78be6644-0a65-48ec-81a4-089ac65a2619&token=3b4c5a2cfa872fa7f91ffbfb4aa0f658
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://owrcovcrpy.gpcdn.net/bpk-tv/1702/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://tvsen5.aynaott.com/PtvSports/index.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://amg26268-amg26268c14-freelivesports-emea-10267.playouts.now.amagi.tv/ts-us-e2-n2/playlist/amg26268-sportsstudio-tycsports-freelivesportsemea/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+http://cdn.tv-rds.workers.dev/TYCSPT.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+http://66.102.126.10:8000/play/a076/index.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://a62dad94.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0ZJRkFQbHVzRW5nbGlzaF9ITFM/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://37b4c228.wurl.com/manifest/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWZyX0ZJRkFQbHVzRnJlbmNoX0hMUw/6f5437c5-e015-4754-8476-c8c6d27d3a55/1.m3u8
+#EXTINF:-1 tvg-logo="https://carboncredits.com/wp-content/uploads/2025/09/shutterstock_2306088965-e1757112807302.jpg" group-title="Football World Cup 2026",Football World Cup 2026
+https://tvsen7.aynaott.com/foxsports2/index.m3u8?e=1779283790&amp;u=78be6644-0a65-48ec-81a4-089ac65a2619&amp;token=cbb7f40b4af7be51a91e0629a5ac7238
+#EXTINF:-1 tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPCvTmUhiKDs4ehoVpFLh7xwdCNK2-N_gNFqnaOM4YRQ&s=10" group-title="Live Sports",Live Sports
+https://tvsen7.aynaott.com/sspts1/tracks-v1a1/mono.ts.m3u8
+#EXTINF:-1 tvg-logo="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPCvTmUhiKDs4ehoVpFLh7xwdCNK2-N_gNFqnaOM4YRQ&s=10" group-title="Live Sports",Live Sports
+http://27.124.71.27/Willow_Extra/index.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/ATN%20Bangla.png" group-title="Bangla",ATN Bangla UK
+https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/atnbanglauk-off.stream/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/NTV.png" group-title="Bangla",NTV UK
+https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI2/ntvuk00332211.stream/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/Bangla%20TV.png" group-title="Bangla",Bangla TV Europe
+https://byphdgllyk.gpcdn.net/hls/banglatveurope/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangla",Srk Tv
+https://srknowapp.ncare.live/srktvhlswodrm/srktv.stream/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/refs/heads/main/Channel%201.png" group-title="Bangla News",Channel 1 News 4K
+https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDEEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFseWRtaW51aiPhnPTI2/channel1bd.stream/tracks-v1a1/mono.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/refs/heads/main/Star%20News.jpg" group-title="Bangla News",Star News
+https://owrcovcrpy.gpcdn.net/bpk-tv/1710/output/1701.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/Jamuna%20TV.jpeg" group-title="Bangla News",Jamuna TV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1701/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangla Music",Bengla Beats
+https://tplay.live/originals/bengali-beats/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangla Music",Channel-16
+https://app24.jagobd.com.bd/c3VydmVyX8RpbEU9Mi8xNy8yMFDEEHGcfRgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcEdsEfeDeKiNkVN3PTOmdFseWRtaW51aiPhnPTI2/channel16bd.stream/tracks-v1a1/mono.m3u8
+#EXTINF:-1 tvg-logo="https://i.ibb.co/Gfw89mC/20240804-033102.png" group-title="Religion Channel",Peace TV Bangla
+https://dzkyvlfyge.erbvr.com/PeaceTvBangla/tracks-v2a1/mono.m3u8
+#EXTINF:-1 tvg-logo="https://i.ibb.co/598TYnC/20240827-092020.png" group-title="Religion Channel",Peace TV English
+https://dzkyvlfyge.erbvr.com/PeaceTvEnglish/index.m3u8
+#EXTINF:-1 tvg-logo="https://i.ibb.co/598TYnC/20240827-092020.png" group-title="Religion Channel",Peace TV Urdu
+https://dzkyvlfyge.erbvr.com/PeaceTvUrdu/index.m3u8
+#EXTINF:-1 tvg-logo="https://i.ibb.co/7jrjkW1/20240813-112630.png" group-title="Religion Channel",Madani TV
+https://streaming.madanichannel.tv/static/streaming-playlists/hls/d3e49b76-ac06-4689-a641-9200445b647f/master.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Religion Channel",God TV
+https://hlsb-us.god.tv/GODTV/USA-480.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Islamic",Islamic TV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1724/output/1724.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Islamic",Makka Live
+https://cdn-globecast.akamaized.net/live/eds/saudi_sunnah/hls_roku/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangla Movies",G-Series
+https://vods2.aynaott.com/gseriesDrama/tracks-v1a1/mono.ts.m3u8
+#EXTINF:-1 tvg-logo="https://i.ibb.co/CPmLfGs/Amar-Bangla.png" group-title="Bangla Movies",Amar Bangla
+https://app.ncare.live/c3VydmVyX8RpbEU9Mi8xNy8yMDE0GIDU6RgzQ6NTAgdEoaeFzbF92YWxIZTO0U0ezN1IzMyfvcGVMZEJCTEFWeVN3PTOmdFsaWRtaW51aiPhnPTI/amarbanglatv.stream/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/Enter%2010%20Bangla.jpeg" group-title="Kolkata Bangla",Enter 10 Bangla
+https://live-bangla.akamaized.net/liveabr/pub-iobanglakp3sff/live_720p/chunks.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Kolkata Bangla",R Plus Gold
+https://cdn-4.pishow.tv/live/1231/1231_1.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Indian Bangla News",ABP Ananda
+https://amg01448-samsungin-abpananda-samsungin-ad-pw.amagi.tv/playlist/amg01448-samsungin-abpananda-samsungin/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Indian Bangla News",Zee 24 Ghanta
+https://d2dsoyvkr33m05.cloudfront.net/index_1.m3u8
+#EXTINF:-1 tvg-logo="https://jio.dinesh29.com.np/smart/ardinesh/logos/news18-bangla-news.png" group-title="Indian Bangla News",News18 Bangla
+https://amg01448-samsungin-news18bangla-samsungin-ad-qy.amagi.tv/playlist/amg01448-samsungin-news18bangla-samsungin/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://jio.dinesh29.com.np/smart/ardinesh/logos/tv9-bangla.png" group-title="Indian Bangla News",TV9 Bangla
+https://amg01448-samsungin-tv9bangla-samsungin-9lgnh.amagi.tv/playlist/amg01448-samsungin-tv9bangla-samsungin/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Indian Bangla News",R Bangla
+https://tvsen5.aynaott.com/R_Bangla/tracks-v1a1/mono.ts.m3u8
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/commons/b/b4/Zee_Anmol_Cinema_logo.png" group-title="Hindi Movies",Zee Anmol TV
+http://103.175.73.12:8080/live/256/256_0.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/Zee%20Action.png" group-title="Hindi Movies",Zee Action
+http://103.175.73.12:8080/live/270/270_0.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/B4U%20Movies.png" group-title="Hindi Movies",B4U Kadak
+https://cdn-2.pishow.tv/live/227/master.m3u8
+#EXTINF:-1 tvg-logo="https://static.wikia.nocookie.net/jhmovie/images/7/7b/Goldmines_logo.png/revision/latest?cb=20240404141630" group-title="Hindi Movies",Goldmines
+https://cdn-2.pishow.tv/live/1459/master.m3u8
+#EXTINF:-1 tvg-logo="https://i.imgur.com/E5jjKHI.png" group-title="Sports",Star Sports 1
+https://tvsen7.aynaott.com/sspts1/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Sports",DD Sports
+https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/b17adfe543354fdd8d189b110617cddd/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="English News",BBC World
+http://cdns.jp-primehome.com:8000/zhongying/live/playlist.m3u8?cid=cs15
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="English News",CNN
+https://amg01448-samsungin-cnnnow-samsungin-4npqg.amagi.tv/playlist/amg01448-samsungin-cnnnow-samsungin/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="English News",DW News
+https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="English News",Sky News
+https://d39chvnxm26pgp.cloudfront.net/v1/master/72588bff830dec7b26d7cbbf5f3c24928aec5c03/cc-sthen6ms4vxgv-stage/WNSFO/ABR.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1770186306600.png" group-title="News",DBC News HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1728/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1739963327549.png" group-title="News",Ekattor HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1705/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1735556516924.png" group-title="News",Channel 24 HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1703/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1739962961772.png" group-title="News",ATN News
+https://owrcovcrpy.gpcdn.net/bpk-tv/1706/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1770186895850.png" group-title="News",News 24 HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1708/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1777454219313.png" group-title="News",Al Jazeera
+https://owrcovcrpy.gpcdn.net/bpk-tv/1721/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1778087037971.png" group-title="News",Independent TV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1704/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1773680325498.png" group-title="Entertainment",Maasranga TV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1722/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1742713000749.png" group-title="Entertainment",Deepto TV HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1711/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1770188008067.png" group-title="Entertainment",Channel 9 HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1729/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1740567626692.png" group-title="Entertainment",Channel I HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1723/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1735561344354.png" group-title="Entertainment",Bangla Vision
+https://owrcovcrpy.gpcdn.net/bpk-tv/1715/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://tstatic.akash-go.com/cms-ui/images/custom-content/1735560841094.png" group-title="Entertainment",NTV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1716/output/index.m3u8
+#EXTINF:-1 tvg-logo="https://upload.wikimedia.org/wikipedia/en/thumb/0/02/Bangladesh_Television_Logo.svg/1200px-Bangladesh_Television_Logo.svg.png" group-title="Live TV",BTV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1709/output/master.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Live TV",Jamuna
+https://owrcovcrpy.gpcdn.net/bpk-tv/1701/output/1701-audio_113312_eng=113200-video=1692000.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Live TV",Channel 9
+https://owrcovcrpy.gpcdn.net/bpk-tv/1729/output/1729-audio_113592_eng=113200-video=2202800.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Cricket",DD Sports
+https://d3qs3d2rkhfqrt.cloudfront.net/out/v1/b17adfe543354fdd8d189b110617cddd/index_3.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Cricket",Willow HD
+https://tvsen5.aynaott.com/willowhd/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Cricket",PTV Sports HD
+https://tvsen5.aynaott.com/PtvSports/tracks-v1a1/mono.ts.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Football",Real Madrid TV
+https://rmtv.akamaized.net/hls/live/2043153/rmtv-es-web/bitrate_3.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Football",FIFA+
+https://37b4c228.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWZyX0ZJRkFQbHVzRnJlbmNoX0hMUw/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangladeshi",GTV
+https://tvsen1.aynaott.com/Ravc7gPCZpxk/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangladeshi",Ekattor HD
+https://owrcovcrpy.gpcdn.net/bpk-tv/1705/output/1705-audio_113352_eng=113200-video=1692000.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Bangladeshi",Somoy TV
+https://owrcovcrpy.gpcdn.net/bpk-tv/1702/output/1702-audio_113322_eng=113200-video=1692000.m3u8
+#EXTINF:-1 tvg-logo="https://images-na.ssl-images-amazon.com/images/I/71CywdrFaZL.png" group-title="Islamic Channels",Peace TV Bangla
+https://dzkyvlfyge.erbvr.com/PeaceTvBangla/tracks-v3a1/mono.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Islamic Channels",Noor TV
+https://cdn.bestream.io:19360/elfaro4/elfaro4.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Documentary",Wild Earth
+https://wildearth-plex.amagi.tv/master.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Documentary",National Geographic HD
+http://149.71.34.166:8002/play/a013/index.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Kids",Zoo Moo
+https://amg01553-blueantmediaasi-zoomoonz-samsungnz-rdufn.amagi.tv/playlist/amg01553-blueantmediaasi-zoomoonz-samsungnz/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Kids",Rongeen TV
+https://server.thelegitpro.in/rongeentv/rongeentv/tracks-v1a1/mono.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="English Movies",Action Hollywood
+https://amg01076-lightningintern-actionhollywood-samsungnz-82rry.amagi.tv/playlist/amg01076-lightningintern-actionhollywood-samsungnz/playlist.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="Hindi Music",Hindi Hits HD
+http://146.59.253.52:8080/hindihitshd/index.m3u8
+#EXTINF:-1 tvg-logo="https://raw.githubusercontent.com/subirkumarpaul/Logo/main/9xm.png" group-title="Hindi Music",9XM
+http://103.175.73.12:8080/live/155/155_0.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="International News",TRT World
+https://tv-trtworld.medya.trt.com.tr/master.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="International News",France 24 English
+https://live.france24.com/hls/live/2037218-b/F24_EN_HI_HLS/master_2300.m3u8
+#EXTINF:-1 tvg-logo="https://bugsfreeweb.github.io/LiveTVCollector/BugsfreeLogo/default-logo.png" group-title="International News",RT News
+https://rt-glb.rttv.com/live/rtnews/playlist.m3u8`;
+
+function parseM3U(r){const lines=r.split('\n').map(l=>l.trim()).filter(Boolean),ch=[];for(let i=0;i<lines.length;i++){if(lines[i].startsWith('#EXTINF')){const m=lines[i],url=lines[i+1]&&!lines[i+1].startsWith('#')?lines[i+1]:null;if(!url)continue;const lm=m.match(/tvg-logo="([^"]*)"/),gm=m.match(/group-title="([^"]*)"/),nm=m.match(/,(.+)$/);ch.push({name:nm?nm[1].trim():'Unknown',logo:lm?lm[1]:'',group:gm?gm[1].trim():'Other',url});i++;}}return ch;}
+
+const ALL=parseM3U(RAW);
+let filtered=[...ALL],activeGrp='All',srch='',cur=null,hlsObj=null,retries=0,dark=true,playing=false;
+const MAXR=3;
+
+function getGroups(){const m={};ALL.forEach(c=>{m[c.group]=(m[c.group]||0)+1;});return m;}
+
+function renderGroups(){
+  const gf=document.getElementById('groupFilter'),grps=getGroups();
+  let h=`<button class="gb ${activeGrp==='All'?'act':''}" onclick="setGroup('All')">All <span class="bdg">${ALL.length}</span></button>`;
+  Object.entries(grps).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([g,c])=>{
+    h+=`<button class="gb ${activeGrp===g?'act':''}" onclick="setGroup(${JSON.stringify(g)})">${g} <span class="bdg">${c}</span></button>`;
+  });
+  gf.innerHTML=h;
+}
+
+function setGroup(g){activeGrp=g;renderGroups();filterChannels();}
+
+function filterChannels(){
+  srch=document.getElementById('searchInput').value.toLowerCase();
+  filtered=ALL.filter(c=>{
+    const ig=activeGrp==='All'||c.group===activeGrp;
+    const is=!srch||c.name.toLowerCase().includes(srch)||c.group.toLowerCase().includes(srch);
+    return ig&&is;
+  });
+  renderList();
+}
+
+function logoHtml(ch,cls,fbcls){
+  return ch.logo
+    ?`<img class="${cls}" src="${ch.logo}" alt="" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='flex'"><div class="${fbcls}" style="display:none">${ch.name.slice(0,3).toUpperCase()}</div>`
+    :`<div class="${fbcls}">${ch.name.slice(0,3).toUpperCase()}</div>`;
+}
+
+function renderList(){
+  const list=document.getElementById('channelList');
+  if(!filtered.length){list.innerHTML='<div class="nores">No channels found</div>';return;}
+  list.innerHTML=filtered.map(ch=>{
+    const gi=ALL.indexOf(ch),pl=cur&&cur.url===ch.url;
+    return `<div class="ci ${pl?'pl':''}" onclick="playCh(${gi})" data-idx="${gi}">
+      <span class="cn">${gi+1}</span>
+      ${logoHtml(ch,'cl','clf')}
+      <div class="cinfo"><div class="cname">${ch.name}</div><div class="cgrp">${ch.group}</div></div>
+      <div class="ca">
+        <button class="cbtn pb" onclick="event.stopPropagation();playCh(${gi})" title="Play">▶</button>
+        <button class="cbtn" onclick="event.stopPropagation();copyLink(${gi})" title="Copy link">⧉</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function playCh(idx){
+  cur=ALL[idx];retries=0;
+  document.getElementById('pp').style.display='none';
+  document.getElementById('npl').textContent=cur.name;
+  document.querySelectorAll('.ci').forEach(el=>el.classList.toggle('pl',parseInt(el.dataset.idx)===idx));
+  updateInfoBar(cur,idx);
+  loadStream(cur.url);
+}
+
+function loadStream(url){
+  const v=document.getElementById('vid');
+  showSt('loading','Loading stream...');
+  if(hlsObj){hlsObj.destroy();hlsObj=null;}
+  if(Hls.isSupported()){
+    hlsObj=new Hls({enableWorker:true,lowLatencyMode:true,backBufferLength:30});
+    hlsObj.loadSource(url);hlsObj.attachMedia(v);
+    hlsObj.on(Hls.Events.MANIFEST_PARSED,()=>{hideSt();v.play().then(()=>{playing=true;updPlay();}).catch(()=>{});});
+    hlsObj.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal)onErr();});
+  }else if(v.canPlayType('application/vnd.apple.mpegurl')){
+    v.src=url;v.play().then(()=>{hideSt();playing=true;updPlay();}).catch(()=>onErr());
+  }else{showSt('error','HLS not supported in this browser.');}
+}
+
+function onErr(){
+  retries++;
+  if(retries<=MAXR){showSt('loading',`Stream error. Retrying... (${retries}/${MAXR})`);setTimeout(()=>{if(cur)loadStream(cur.url);},2000);}
+  else{showSt('error','Stream unavailable. Channel may be offline or geo-blocked.');document.getElementById('rbt').style.display='inline-block';}
+}
+
+function retryStream(){if(!cur)return;retries=0;document.getElementById('rbt').style.display='none';loadStream(cur.url);}
+
+function showSt(t,msg){
+  const o=document.getElementById('so'),sp=document.getElementById('spin'),m=document.getElementById('smsg');
+  o.classList.add('show');sp.style.display=t==='loading'?'block':'none';
+  m.textContent=msg;m.style.color=t==='error'?'var(--err)':'#fff';
+}
+function hideSt(){document.getElementById('so').classList.remove('show');}
+
+function togglePlay(){const v=document.getElementById('vid');if(v.paused){v.play();playing=true;}else{v.pause();playing=false;}updPlay();}
+function updPlay(){document.getElementById('pico').textContent=playing?'⏸':'▶';}
+function toggleMute(){const v=document.getElementById('vid');v.muted=!v.muted;document.getElementById('mb').textContent=v.muted?'🔇':'🔊';}
+function setVolume(val){const v=document.getElementById('vid');v.volume=val;v.muted=val==0;document.getElementById('mb').textContent=val==0?'🔇':'🔊';localStorage.setItem('iv',val);}
+function toggleFS(){const el=document.getElementById('pa');if(!document.fullscreenElement)el.requestFullscreen?.();else document.exitFullscreen?.();}
+async function togglePiP(){
+  const v=document.getElementById('vid');
+  if(document.pictureInPictureElement){await document.exitPictureInPicture();}
+  else if(document.pictureInPictureEnabled&&v.readyState>=2){await v.requestPictureInPicture();}
+  else showToast('Start a stream first to use PiP');
+}
+
+function updateInfoBar(ch,idx){
+  const b=document.getElementById('ibar');
+  b.innerHTML=`${logoHtml(ch,'il','ilf')}
+    <div class="id"><div class="iname">${ch.name}</div><div class="igrp">${ch.group}</div></div>
+    <span class="ibadge">#${idx+1} of ${ALL.length}</span>
+    <div class="kbh" style="margin-left:auto"><span>Space: Play/Pause</span><span>M: Mute</span><span>F: Fullscreen</span><span>P: PiP</span></div>`;
+}
+
+function copyLink(idx){
+  const url=ALL[idx].url;
+  navigator.clipboard.writeText(url).then(()=>showToast('Link copied!')).catch(()=>{
+    const t=document.createElement('textarea');t.value=url;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);showToast('Link copied!');
+  });
+}
+
+function toggleTheme(){
+  dark=!dark;document.body.classList.toggle('light',!dark);
+  document.querySelector('header .ibtn').textContent=dark?'🌙 Dark':'☀️ Light';
+  localStorage.setItem('ith',dark?'dark':'light');
+}
+
+let tTimer;
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(tTimer);tTimer=setTimeout(()=>t.classList.remove('show'),2000);}
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();if(cur)togglePlay();}
+  if(e.key==='m'||e.key==='M')toggleMute();
+  if(e.key==='f'||e.key==='F')toggleFS();
+  if(e.key==='p'||e.key==='P')togglePiP();
+});
+
+// Resize
+(function(){
+  const h=document.getElementById('rh'),s=document.getElementById('sidebar');
+  let drag=false,sx,sw;
+  h.addEventListener('mousedown',e=>{drag=true;sx=e.clientX;sw=s.offsetWidth;h.classList.add('drag');e.preventDefault();});
+  document.addEventListener('mousemove',e=>{if(!drag)return;const nw=Math.max(200,Math.min(window.innerWidth*.6,sw+e.clientX-sx));s.style.width=nw+'px';});
+  document.addEventListener('mouseup',()=>{drag=false;h.classList.remove('drag');});
+})();
+
+// Video events
+const vid=document.getElementById('vid');
+vid.addEventListener('play',()=>{playing=true;updPlay();hideSt();});
+vid.addEventListener('pause',()=>{playing=false;updPlay();});
+vid.addEventListener('waiting',()=>{if(cur)showSt('loading','Buffering...');});
+vid.addEventListener('playing',hideSt);
+vid.addEventListener('error',()=>{if(cur)onErr();});
+
+// Overlay hide
+let ot;
+document.getElementById('pa').addEventListener('mousemove',()=>{
+  const o=document.getElementById('pov');o.classList.add('vis');
+  clearTimeout(ot);ot=setTimeout(()=>o.classList.remove('vis'),2500);
+});
+
+// Init
+(function(){
+  const sv=localStorage.getItem('ith');
+  if(sv==='light'){dark=false;document.body.classList.add('light');document.querySelector('header .ibtn').textContent='☀️ Light';}
+  const vv=localStorage.getItem('iv');
+  if(vv!==null){vid.volume=parseFloat(vv);document.getElementById('vs').value=vv;}
+  document.getElementById('totalCount').textContent=`${ALL.length} channels`;
+  renderGroups();renderList();
+})();
+</script>
+</body>
+</html>
